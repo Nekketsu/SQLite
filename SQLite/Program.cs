@@ -1,16 +1,37 @@
-﻿while (true)
+﻿using SQLite;
+using SQLite.MetaCommands;
+using SQLite.Statements;
+
+while (true)
 {
     PrintPrompt();
     var input = ReadInput();
 
-    if (input == ".exit")
+    if (input.StartsWith('.'))
     {
-        Environment.Exit(0);
+        switch (PrepareMetaCommand(input, out var metaCommand))
+        {
+            case MetaCommandResult.Success:
+                break;
+            case MetaCommandResult.UnrecognizedCommand:
+                Console.WriteLine($"Unrecognized command {input}");
+                continue;
+        }
+
+        metaCommand.Execute();
     }
-    else
+
+    switch (PrepareStatement(input, out var statement))
     {
-        Console.WriteLine($"Unrecognized command {input}");
+        case PrepareResult.Success:
+            break;
+        case PrepareResult.UnrecognizedStatement:
+            Console.WriteLine($"Unrecognized keyword at start of {input}");
+            continue;
     }
+
+    statement.Execute();
+    Console.WriteLine("Executed.");
 }
 
 void PrintPrompt()
@@ -29,4 +50,35 @@ string ReadInput()
     }
 
     return input;
+}
+
+MetaCommandResult PrepareMetaCommand(string input, out MetaCommand metaCommand)
+{
+    if (input == ".exit")
+    {
+        metaCommand = new ExitMetaCommand();
+        return MetaCommandResult.Success;
+    }
+
+    metaCommand = null!;
+
+    return MetaCommandResult.UnrecognizedCommand;
+}
+
+PrepareResult PrepareStatement(string input, out Statement statement)
+{
+    if (input.StartsWith("insert"))
+    {
+        statement = new InsertStatement();
+        return PrepareResult.Success;
+    }
+    if (input == "select")
+    {
+        statement = new SelectStatement();
+        return PrepareResult.Success;
+    }
+
+    statement = null!;
+
+    return PrepareResult.UnrecognizedStatement;
 }
