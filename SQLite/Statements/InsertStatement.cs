@@ -2,8 +2,22 @@
 
 public class InsertStatement : Statement
 {
-    public override void Execute()
+    public Table Table { get; }
+    public Row RowToInsert { get; }
+
+    public InsertStatement(Table table, Row rowToInsert)
     {
-        Console.WriteLine("This is where we would do an insert.");
+        Table = table;
+        RowToInsert = rowToInsert;
+    }
+
+    public override ExecuteResult Execute()
+    {
+        if (!Table.Insert(RowToInsert))
+        {
+            return ExecuteResult.TableFull;
+        }
+
+        return ExecuteResult.Success;
     }
 }

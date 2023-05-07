@@ -2,6 +2,8 @@
 using SQLite.MetaCommands;
 using SQLite.Statements;
 
+var table = new Table();
+
 while (true)
 {
     PrintPrompt();
@@ -9,11 +11,11 @@ while (true)
 
     if (input.StartsWith('.'))
     {
-        switch (PrepareMetaCommand(input, out var metaCommand))
+        switch (MetaCommand.Prepare(input, out var metaCommand))
         {
-            case MetaCommandResult.Success:
+            case PrepareMetaCommandResult.Success:
                 break;
-            case MetaCommandResult.UnrecognizedCommand:
+            case PrepareMetaCommandResult.UnrecognizedCommand:
                 Console.WriteLine($"Unrecognized command {input}");
                 continue;
         }
@@ -21,17 +23,27 @@ while (true)
         metaCommand.Execute();
     }
 
-    switch (PrepareStatement(input, out var statement))
+    switch (Statement.Prepare(input, table, out var statement))
     {
-        case PrepareResult.Success:
+        case PrepareStatementResult.Success:
             break;
-        case PrepareResult.UnrecognizedStatement:
+        case PrepareStatementResult.SyntaxError:
+            Console.WriteLine("Syntax error. Could not parse statement.");
+            continue;
+        case PrepareStatementResult.UnrecognizedStatement:
             Console.WriteLine($"Unrecognized keyword at start of {input}");
             continue;
     }
 
-    statement.Execute();
-    Console.WriteLine("Executed.");
+    switch (statement.Execute())
+    {
+        case ExecuteResult.Success:
+            Console.WriteLine("Executed.");
+            break;
+        case ExecuteResult.TableFull:
+            Console.WriteLine("Error: Table full.");
+            break;
+    }
 }
 
 void PrintPrompt()
@@ -50,35 +62,4 @@ string ReadInput()
     }
 
     return input;
-}
-
-MetaCommandResult PrepareMetaCommand(string input, out MetaCommand metaCommand)
-{
-    if (input == ".exit")
-    {
-        metaCommand = new ExitMetaCommand();
-        return MetaCommandResult.Success;
-    }
-
-    metaCommand = null!;
-
-    return MetaCommandResult.UnrecognizedCommand;
-}
-
-PrepareResult PrepareStatement(string input, out Statement statement)
-{
-    if (input.StartsWith("insert"))
-    {
-        statement = new InsertStatement();
-        return PrepareResult.Success;
-    }
-    if (input == "select")
-    {
-        statement = new SelectStatement();
-        return PrepareResult.Success;
-    }
-
-    statement = null!;
-
-    return PrepareResult.UnrecognizedStatement;
 }

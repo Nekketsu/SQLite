@@ -2,8 +2,26 @@
 
 public class SelectStatement : Statement
 {
-    public override void Execute()
+    public Table Table { get; }
+
+    public SelectStatement(Table table)
     {
-        Console.WriteLine("This is where we would do a select.");
+        Table = table;
+    }
+
+    public override ExecuteResult Execute()
+    {
+        for (var i = 0; i < Table.NumRows; i++)
+        {
+            var row = Table.Select(i);
+            PrintRow(row);
+        }
+
+        return ExecuteResult.Success;
+    }
+
+    private void PrintRow(Row row)
+    {
+        Console.WriteLine(row);
     }
 }
