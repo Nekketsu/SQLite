@@ -1,12 +1,17 @@
-﻿namespace SQLite.Statements;
+﻿using SQLite.Services;
+
+namespace SQLite.Statements;
 
 public class SelectStatement : Statement
 {
+    private readonly IOutputService output;
+
     public Table Table { get; }
 
-    public SelectStatement(Table table)
+    public SelectStatement(Table table, IOutputService output)
     {
         Table = table;
+        this.output = output;
     }
 
     public override ExecuteResult Execute()
@@ -22,6 +27,6 @@ public class SelectStatement : Statement
 
     private void PrintRow(Row row)
     {
-        Console.WriteLine(row);
+        output.WriteLine(row.ToString());
     }
 }

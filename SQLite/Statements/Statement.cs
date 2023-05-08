@@ -1,10 +1,13 @@
-﻿namespace SQLite.Statements;
+﻿using SQLite.Exceptions;
+using SQLite.Services;
+
+namespace SQLite.Statements;
 
 public abstract class Statement
 {
     public abstract ExecuteResult Execute();
 
-    public static PrepareStatementResult Prepare(string input, Table table, out Statement statement)
+    public static PrepareStatementResult Prepare(string input, Table table, IOutputService output, out Statement statement)
     {
         statement = null!;
 
@@ -21,14 +24,25 @@ public abstract class Statement
             var username = inputSplit[2];
             var email = inputSplit[3];
 
-            var rowToInsert = new Row(id, username, email);
+            try
+            {
+                var rowToInsert = new Row(id, username, email);
 
-            statement = new InsertStatement(table, rowToInsert);
-            return PrepareStatementResult.Success;
+                statement = new InsertStatement(table, rowToInsert);
+                return PrepareStatementResult.Success;
+            }
+            catch (NegativeIdException)
+            {
+                return PrepareStatementResult.NegativeId;
+            }
+            catch (StringTooLongException)
+            {
+                return PrepareStatementResult.StringTooLong;
+            }
         }
         if (input == "select")
         {
-            statement = new SelectStatement(table);
+            statement = new SelectStatement(table, output);
             return PrepareStatementResult.Success;
         }
 

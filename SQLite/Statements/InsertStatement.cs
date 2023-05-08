@@ -1,4 +1,6 @@
-﻿namespace SQLite.Statements;
+﻿using SQLite.Exceptions;
+
+namespace SQLite.Statements;
 
 public class InsertStatement : Statement
 {
@@ -13,11 +15,15 @@ public class InsertStatement : Statement
 
     public override ExecuteResult Execute()
     {
-        if (!Table.Insert(RowToInsert))
+        try
+        {
+            Table.Insert(RowToInsert);
+
+            return ExecuteResult.Success;
+        }
+        catch (TableFullException)
         {
             return ExecuteResult.TableFull;
         }
-
-        return ExecuteResult.Success;
     }
 }

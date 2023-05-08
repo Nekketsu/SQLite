@@ -1,4 +1,6 @@
-﻿namespace SQLite;
+﻿using SQLite.Exceptions;
+
+namespace SQLite;
 
 public class Table
 {
@@ -6,22 +8,20 @@ public class Table
     const int rowsPerPage = Page.Size / Row.Size;
     const int maxRows = rowsPerPage * maxPages;
 
-    public Page[] Pages = new Page[maxPages];
-    public int NumRows { get; private set; }
+    public Page[] Pages { get; } = new Page[maxPages];
+    public int NumRows { get; private set; } = 0;
 
-    public bool Insert(Row row)
+    public void Insert(Row row)
     {
         if (NumRows >= maxRows)
         {
-            return false;
+            throw new TableFullException();
         }
 
         var rowSlot = RowSlot(NumRows);
         row.Serialize(rowSlot);
 
         NumRows++;
-
-        return true;
     }
 
     public Row Select(int rowNum)
