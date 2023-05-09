@@ -1,18 +1,17 @@
-﻿using SQLite.Services;
-
-namespace SQLite.MetaCommands;
+﻿namespace SQLite.MetaCommands;
 
 public class ExitMetaCommand : MetaCommand
 {
-    private readonly IEnvironmentService environment;
+    private readonly Table table;
 
-    public ExitMetaCommand(IEnvironmentService environment)
+    public ExitMetaCommand(Table table)
     {
-        this.environment = environment;
+        this.table = table;
     }
 
-    public override void Execute()
+    public override async Task ExecuteAsync()
     {
-        environment.Exit(0);
+        await table.CloseAsync();
+        DbContext.EnvironmentService.Exit(0);
     }
 }

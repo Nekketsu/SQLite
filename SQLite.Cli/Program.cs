@@ -1,10 +1,22 @@
 ﻿using SQLite;
 using SQLite.Cli.Services;
 
-var environment = new ConsoleEnvironmentService();
-var input = new ConsoleInputService();
-var output = new ConsoleOutputService();
+var context = new DbContext(
+    new ConsoleInputService(),
+    new ConsoleOutputService(),
+    new ConsoleEnvironmentService()
+);
 
-var repl = new Repl(environment, input, output);
+DbContext.SetContext(context);
 
-repl.Run();
+if (!args.Any())
+{
+    Console.WriteLine("Must supply a database filename.\n");
+    DbContext.EnvironmentService.Exit(1);
+}
+
+var filename = args.First();
+
+var repl = new Repl(context);
+
+await repl.RunAsync(filename);

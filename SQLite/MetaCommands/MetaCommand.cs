@@ -1,16 +1,14 @@
-﻿using SQLite.Services;
-
-namespace SQLite.MetaCommands;
+﻿namespace SQLite.MetaCommands;
 
 public abstract class MetaCommand
 {
-    public abstract void Execute();
+    public abstract Task ExecuteAsync();
 
-    public static PrepareMetaCommandResult Prepare(IEnvironmentService environment, string input, out MetaCommand metaCommand)
+    public static PrepareMetaCommandResult Prepare(string input, Table table, out MetaCommand metaCommand)
     {
         if (input == ".exit")
         {
-            metaCommand = new ExitMetaCommand(environment);
+            metaCommand = new ExitMetaCommand(table);
             return PrepareMetaCommandResult.Success;
         }
 

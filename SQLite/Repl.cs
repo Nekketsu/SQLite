@@ -1,25 +1,18 @@
 ﻿using SQLite.MetaCommands;
-using SQLite.Services;
 using SQLite.Statements;
 
 namespace SQLite;
 
 public class Repl
 {
-    private readonly IEnvironmentService environmentService;
-    private readonly IInputService inputService;
-    private readonly IOutputService outputService;
-
-    public Repl(IEnvironmentService environmentService, IInputService inputService, IOutputService outputService)
+    public Repl(DbContext context)
     {
-        this.environmentService = environmentService;
-        this.inputService = inputService;
-        this.outputService = outputService;
+        DbContext.SetContext(context);
     }
 
-    public void Run()
+    public async Task RunAsync(string filename)
     {
-        var table = new Table();
+        var table = Table.Open(filename);
 
         while (true)
         {
@@ -28,63 +21,63 @@ public class Repl
 
             if (input.StartsWith('.'))
             {
-                switch (MetaCommand.Prepare(environmentService, input, out var metaCommand))
+                switch (MetaCommand.Prepare(input, table, out var metaCommand))
                 {
                     case PrepareMetaCommandResult.Success:
                         break;
                     case PrepareMetaCommandResult.UnrecognizedCommand:
-                        outputService.WriteLine($"Unrecognized command {input}");
+                        DbContext.OutputService.WriteLine($"Unrecognized command {input}");
                         continue;
                 }
 
-                metaCommand.Execute();
+                await metaCommand.ExecuteAsync();
             }
 
-            switch (Statement.Prepare(input, table, outputService, out var statement))
+            switch (Statement.Prepare(input, table, out var statement))
             {
                 case PrepareStatementResult.Success:
                     break;
                 case PrepareStatementResult.NegativeId:
-                    outputService.WriteLine("ID must be positive.");
+                    DbContext.OutputService.WriteLine("ID must be positive.");
                     continue;
                 case PrepareStatementResult.StringTooLong:
-                    outputService.WriteLine("String is too long.");
+                    DbContext.OutputService.WriteLine("String is too long.");
                     continue;
                 case PrepareStatementResult.SyntaxError:
-                    outputService.WriteLine("Syntax error. Could not parse statement.");
+                    DbContext.OutputService.WriteLine("Syntax error. Could not parse statement.");
                     continue;
                 case PrepareStatementResult.UnrecognizedStatement:
-                    outputService.WriteLine($"Unrecognized keyword at start of {input}");
+                    DbContext.OutputService.WriteLine($"Unrecognized keyword at start of {input}");
                     continue;
             }
 
-            switch (statement.Execute())
+            switch (await statement.ExecuteAsync())
             {
                 case ExecuteResult.Success:
-                    outputService.WriteLine("Executed.");
+                    DbContext.OutputService.WriteLine("Executed.");
                     break;
                 case ExecuteResult.TableFull:
-                    outputService.WriteLine("Error: Table full.");
+                    DbContext.OutputService.WriteLine("Error: Table full.");
                     break;
             }
         }
 
         void PrintPrompt()
         {
-            outputService.Write("db > ");
+            DbContext.OutputService.Write("db > ");
         }
 
         string ReadInput()
         {
-            var input = this.inputService.ReadLine();
+            var input = DbContext.InputService.ReadLine();
 
             if (input is null)
             {
-                outputService.WriteLine("Error reading input");
-                Environment.Exit(1);
+                DbContext.OutputService.WriteLine("Error reading input");
+                DbContext.EnvironmentService.Exit(1);
             }
 
-            return input;
+            return input!;
         }
     }
 }

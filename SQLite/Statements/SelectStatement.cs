@@ -1,24 +1,19 @@
-﻿using SQLite.Services;
-
-namespace SQLite.Statements;
+﻿namespace SQLite.Statements;
 
 public class SelectStatement : Statement
 {
-    private readonly IOutputService output;
-
     public Table Table { get; }
 
-    public SelectStatement(Table table, IOutputService output)
+    public SelectStatement(Table table)
     {
         Table = table;
-        this.output = output;
     }
 
-    public override ExecuteResult Execute()
+    public override async Task<ExecuteResult> ExecuteAsync()
     {
         for (var i = 0; i < Table.NumRows; i++)
         {
-            var row = Table.Select(i);
+            var row = await Table.SelectAsync(i);
             PrintRow(row);
         }
 
@@ -27,6 +22,6 @@ public class SelectStatement : Statement
 
     private void PrintRow(Row row)
     {
-        output.WriteLine(row.ToString());
+        DbContext.OutputService.WriteLine(row.ToString());
     }
 }

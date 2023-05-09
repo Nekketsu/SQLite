@@ -27,13 +27,13 @@ public class Row
 
     public Row(int id, string username, string email)
         : this(id, username, email,
-            BitConverter.GetBytes(id).AsSpan(),
-            Encoding.GetBytes(username).AsSpan(),
-            Encoding.GetBytes(email).AsSpan())
+            BitConverter.GetBytes(id).AsMemory(),
+            Encoding.GetBytes(username).AsMemory(),
+            Encoding.GetBytes(email).AsMemory())
     {
     }
 
-    private Row(int id, string username, string email, Span<byte> idSpan, Span<byte> usernameSpan, Span<byte> emailSpan)
+    private Row(int id, string username, string email, Memory<byte> idSpan, Memory<byte> usernameSpan, Memory<byte> emailSpan)
     {
         if (id < 0)
         {
@@ -55,7 +55,7 @@ public class Row
         emailSpan.CopyTo(emailBytes);
     }
 
-    public void Serialize(Span<byte> destination)
+    public void Serialize(Memory<byte> destination)
     {
         var id = destination[idOffset..(idOffset + idSize)];
         var username = destination[usernameOffset..(usernameOffset + usernameSize)];
@@ -66,17 +66,17 @@ public class Row
         emailBytes.CopyTo(email);
     }
 
-    public static Row Deserialize(Span<byte> bytes)
+    public static Row Deserialize(Memory<byte> bytes)
     {
-        var idSpan = bytes[idOffset..(idOffset + idSize)];
-        var usernameSpan = bytes[usernameOffset..(usernameOffset + usernameSize)];
-        var emailSpan = bytes[emailOffset..(emailOffset + emailSize)];
+        var idMemory = bytes[idOffset..(idOffset + idSize)];
+        var usernameMemory = bytes[usernameOffset..(usernameOffset + usernameSize)];
+        var emailMemory = bytes[emailOffset..(emailOffset + emailSize)];
 
-        var id = BitConverter.ToInt32(idSpan);
-        var username = Encoding.GetString(RemoveEndOfString(usernameSpan));
-        var email = Encoding.GetString(RemoveEndOfString(emailSpan));
+        var id = BitConverter.ToInt32(idMemory.Span);
+        var username = Encoding.GetString(RemoveEndOfString(usernameMemory.Span));
+        var email = Encoding.GetString(RemoveEndOfString(emailMemory.Span));
 
-        var row = new Row(id, username, email, idSpan, usernameSpan, emailSpan);
+        var row = new Row(id, username, email, idMemory, usernameMemory, emailMemory);
 
         return row;
     }

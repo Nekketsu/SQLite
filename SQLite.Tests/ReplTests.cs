@@ -4,9 +4,14 @@ namespace SQLite.Tests
 {
     public class ReplTests
     {
+        const string filename = "test.db";
+
         [Fact]
-        public void InsertsAndRetrievesARow()
+        public async Task InsertsAndRetrievesARow()
         {
+            var path = nameof(InsertsAndRetrievesARow);
+            CleanUp(path);
+
             var script = new[]
             {
                 "insert 1 user1 person1@example.com",
@@ -14,7 +19,7 @@ namespace SQLite.Tests
                 ".exit"
             };
 
-            var result = RunScript(script);
+            var result = await RunScriptAsync(script, path);
 
             var expected = new[]
             {
@@ -28,14 +33,17 @@ namespace SQLite.Tests
         }
 
         [Fact]
-        public void PrintsErrorMessageWhenTableIsFull()
+        public async Task PrintsErrorMessageWhenTableIsFull()
         {
+            var path = nameof(PrintsErrorMessageWhenTableIsFull);
+            CleanUp(path);
+
             var script = Enumerable.Range(1, 1401)
                 .Select(i => $"insert {i} user{i} person{i}@example.com")
                 .Append(".exit")
                 .ToArray();
 
-            var result = RunScript(script);
+            var result = await RunScriptAsync(script, path);
 
             var expected = "db > Error: Table full.";
 
@@ -43,8 +51,11 @@ namespace SQLite.Tests
         }
 
         [Fact]
-        public void AllowsInsertingStringsThatAreTheMaximumLength()
+        public async Task AllowsInsertingStringsThatAreTheMaximumLength()
         {
+            var path = nameof(AllowsInsertingStringsThatAreTheMaximumLength);
+            CleanUp(path);
+
             var longUserName = new string('a', 32);
             var longEmail = new string('a', 255);
 
@@ -55,7 +66,7 @@ namespace SQLite.Tests
                 ".exit"
             };
 
-            var result = RunScript(script);
+            var result = await RunScriptAsync(script, path);
 
             var expected = new[]
             {
@@ -69,8 +80,11 @@ namespace SQLite.Tests
         }
 
         [Fact]
-        public void PrintsErrorMessageIfStringsAreTooLong()
+        public async Task PrintsErrorMessageIfStringsAreTooLong()
         {
+            var path = nameof(PrintsErrorMessageWhenTableIsFull);
+            CleanUp(path);
+
             var longUsername = new string('a', 33);
             var longEmail = new string('a', 256);
 
@@ -81,7 +95,7 @@ namespace SQLite.Tests
                 ".exit"
             };
 
-            var result = RunScript(script);
+            var result = await RunScriptAsync(script, path);
 
             var expected = new[]
             {
@@ -94,8 +108,11 @@ namespace SQLite.Tests
         }
 
         [Fact]
-        public void PrintsAnErrorMessageIfIdIsNegative()
+        public async Task PrintsAnErrorMessageIfIdIsNegative()
         {
+            var path = nameof(PrintsAnErrorMessageIfIdIsNegative);
+            CleanUp(path);
+
             var script = new[]
             {
                 "insert -1 cstack foo@bar.com",
@@ -103,7 +120,7 @@ namespace SQLite.Tests
                 ".exit"
             };
 
-            var result = RunScript(script);
+            var result = await RunScriptAsync(script, path);
 
             var expected = new[]
             {
@@ -115,20 +132,77 @@ namespace SQLite.Tests
             Assert.Equal(expected, result);
         }
 
-        private string[] RunScript(string[] script)
+        [Fact]
+        public async Task KeepsDataAfterClosingConnection()
         {
-            var environment = new MockEnvironmentService();
-            var input = new MockInputService(script);
-            var output = new MockOutputService();
+            var path = nameof(KeepsDataAfterClosingConnection);
+            CleanUp(path);
 
-            var repl = new Repl(environment, input, output);
+            var script1 = new[]
+            {
+                "insert 1 user1 person1@example.com",
+                ".exit"
+            };
+
+            var result1 = await RunScriptAsync(script1, path);
+
+            var expected1 = new[]
+            {
+                "db > Executed.",
+                "db > ",
+            };
+
+            Assert.Equal(expected1, result1);
+
+
+            var script2 = new[]
+            {
+                "select",
+                ".exit"
+            };
+
+            var result2 = await RunScriptAsync(script2, path);
+
+            var expected2 = new[]
+            {
+                "db > (1, user1, person1@example.com)",
+                "Executed.",
+                "db > "
+            };
+
+            Assert.Equal(expected2, result2);
+
+        }
+
+        private async Task<string[]> RunScriptAsync(string[] script, string path)
+        {
+            var outputService = new MockOutputService();
+
+            var context = new DbContext(
+                new MockInputService(script),
+                outputService,
+                new MockEnvironmentService()
+            );
+
+            var repl = new Repl(context);
             try
             {
-                repl.Run();
+                var fullPath = Path.Combine(path, filename);
+                await repl.RunAsync(fullPath);
             }
             catch (ExitException) { }
 
-            return output.Output;
+            return outputService.Output;
+        }
+
+        private void CleanUp(string path)
+        {
+            var fullPath = Path.Combine(path, filename);
+
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
         }
     }
 }

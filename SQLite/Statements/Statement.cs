@@ -1,13 +1,12 @@
 ﻿using SQLite.Exceptions;
-using SQLite.Services;
 
 namespace SQLite.Statements;
 
 public abstract class Statement
 {
-    public abstract ExecuteResult Execute();
+    public abstract Task<ExecuteResult> ExecuteAsync();
 
-    public static PrepareStatementResult Prepare(string input, Table table, IOutputService output, out Statement statement)
+    public static PrepareStatementResult Prepare(string input, Table table, out Statement statement)
     {
         statement = null!;
 
@@ -42,7 +41,7 @@ public abstract class Statement
         }
         if (input == "select")
         {
-            statement = new SelectStatement(table, output);
+            statement = new SelectStatement(table);
             return PrepareStatementResult.Success;
         }
 

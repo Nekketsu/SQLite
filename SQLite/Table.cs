@@ -4,45 +4,55 @@ namespace SQLite;
 
 public class Table
 {
-    const int maxPages = 100;
-    const int rowsPerPage = Page.Size / Row.Size;
-    const int maxRows = rowsPerPage * maxPages;
+    public const int MaxPages = 100;
+    public const int RowsPerPage = Page.Size / Row.Size;
+    const int maxRows = RowsPerPage * MaxPages;
 
-    public Page[] Pages { get; } = new Page[maxPages];
-    public int NumRows { get; private set; } = 0;
+    public Pager Pager { get; }
+    public int NumRows { get; private set; }
 
-    public void Insert(Row row)
+    private Table(string fileName)
+    {
+        Pager = Pager.Open(fileName);
+        NumRows = (int)(Pager.FileLength / Row.Size);
+    }
+
+    public static Table Open(string fileName) => new Table(fileName);
+
+    public async Task CloseAsync()
+    {
+        await Pager.FlushAsync(NumRows);
+        Pager.Close();
+    }
+
+    public async Task InsertAsync(Row row)
     {
         if (NumRows >= maxRows)
         {
             throw new TableFullException();
         }
 
-        var rowSlot = RowSlot(NumRows);
+        var rowSlot = await RowSlotAsync(NumRows);
         row.Serialize(rowSlot);
 
         NumRows++;
     }
 
-    public Row Select(int rowNum)
+    public async Task<Row> SelectAsync(int rowNum)
     {
-        var rowSlot = RowSlot(rowNum);
+        var rowSlot = await RowSlotAsync(rowNum);
         var row = Row.Deserialize(rowSlot);
 
         return row;
     }
 
-    private Span<byte> RowSlot(int rowNum)
+    private async Task<Memory<byte>> RowSlotAsync(int rowNum)
     {
-        var pageNum = rowNum / rowsPerPage;
-        var page = Pages[pageNum];
-        if (page is null)
-        {
-            page = Pages[pageNum] = new Page();
-        }
-        var rowOffset = rowNum % rowsPerPage;
+        var pageNum = rowNum / RowsPerPage;
+        var page = await Pager.GetPageAsync(pageNum);
+        var rowOffset = rowNum % RowsPerPage;
         var byteOffset = rowOffset * Row.Size;
 
-        return page.AsSpan(byteOffset);
+        return page.Buffer.AsMemory(byteOffset);
     }
 }

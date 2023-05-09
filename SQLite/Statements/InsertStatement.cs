@@ -13,11 +13,11 @@ public class InsertStatement : Statement
         RowToInsert = rowToInsert;
     }
 
-    public override ExecuteResult Execute()
+    public override async Task<ExecuteResult> ExecuteAsync()
     {
         try
         {
-            Table.Insert(RowToInsert);
+            await Table.InsertAsync(RowToInsert);
 
             return ExecuteResult.Success;
         }
