@@ -17,7 +17,16 @@ public class InsertStatement : Statement
     {
         try
         {
-            await Table.InsertAsync(RowToInsert);
+            if (Table.NumRows >= Table.MaxRows)
+            {
+                throw new TableFullException();
+            }
+
+            var cursor = Table.End();
+            var row = await cursor.GetValueAsync();
+            RowToInsert.Serialize(await cursor.GetValueAsync());
+
+            Table.NumRows++;
 
             return ExecuteResult.Success;
         }
