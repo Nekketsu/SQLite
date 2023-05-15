@@ -4,16 +4,26 @@ public abstract class MetaCommand
 {
     public abstract Task ExecuteAsync();
 
-    public static PrepareMetaCommandResult Prepare(string input, Table table, out MetaCommand metaCommand)
+    public static async Task<(PrepareMetaCommandResult, MetaCommand)> PrepareAsync(string input, Database database)
     {
         if (input == ".exit")
         {
-            metaCommand = new ExitMetaCommand(table);
-            return PrepareMetaCommandResult.Success;
+            var metaCommand = new ExitMetaCommand(database);
+            return (PrepareMetaCommandResult.Success, metaCommand);
+        }
+        else if (input == ".constants")
+        {
+            var metaCommand = new ConstantsMetaCommand();
+            return (PrepareMetaCommandResult.Success, metaCommand);
+        }
+        else if (input == ".btree")
+        {
+            DbContext.OutputService.WriteLine("Tree:");
+            var page = await database.Table.Pager.GetPageAsync(0);
+            var metaCommand = new PrintLeafNodeMetaCommand(page.Buffer);
+            return (PrepareMetaCommandResult.Success, metaCommand);
         }
 
-        metaCommand = null!;
-
-        return PrepareMetaCommandResult.UnrecognizedCommand;
+        return (PrepareMetaCommandResult.UnrecognizedCommand, null!);
     }
 }

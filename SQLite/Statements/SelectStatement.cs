@@ -11,12 +11,12 @@ public class SelectStatement : Statement
 
     public override async Task<ExecuteResult> ExecuteAsync()
     {
-        var cursor = Table.Start();
+        var cursor = await Table.StartAsync();
         while (!cursor.EndOfTable)
         {
             var row = Row.Deserialize(await cursor.GetValueAsync());
             PrintRow(row);
-            cursor.Advance();
+            await cursor.AdvanceAsync();
         }
 
         return ExecuteResult.Success;

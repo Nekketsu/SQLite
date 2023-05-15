@@ -5,27 +5,30 @@ namespace SQLite;
 
 public class Row
 {
-    const int idSize = 4;
-    const int usernameSize = 32;
-    const int emailSize = 255;
+    const uint columnUserNameSize = 32;
+    const uint columnEmailSize = 255;
 
-    const int idOffset = 0;
-    const int usernameOffset = idOffset + idSize;
-    const int emailOffset = usernameOffset + usernameSize;
+    const uint idSize = 4;
+    const uint usernameSize = columnUserNameSize + 1;
+    const uint emailSize = columnEmailSize + 1;
 
-    public const int Size = idSize + usernameSize + emailSize;
+    const uint idOffset = 0;
+    const uint usernameOffset = idOffset + idSize;
+    const uint emailOffset = usernameOffset + usernameSize;
+
+    public const uint Size = idSize + usernameSize + emailSize;
 
     private readonly byte[] idBytes = new byte[idSize]; // int
     private readonly byte[] usernameBytes = new byte[usernameSize]; // varchar(32)
     private readonly byte[] emailBytes = new byte[emailSize]; // varchar(255)
 
-    public int Id { get; set; }
+    public uint Id { get; set; }
     public string Username { get; set; }
     public string Email { get; set; }
 
     private static Encoding Encoding => Encoding.UTF8;
 
-    public Row(int id, string username, string email)
+    public Row(uint id, string username, string email)
         : this(id, username, email,
             BitConverter.GetBytes(id).AsMemory(),
             Encoding.GetBytes(username).AsMemory(),
@@ -33,15 +36,10 @@ public class Row
     {
     }
 
-    private Row(int id, string username, string email, Memory<byte> idSpan, Memory<byte> usernameSpan, Memory<byte> emailSpan)
+    private Row(uint id, string username, string email, Memory<byte> idSpan, Memory<byte> usernameSpan, Memory<byte> emailSpan)
     {
-        if (id < 0)
-        {
-            throw new NegativeIdException();
-        }
-
-        if (usernameSpan.Length > usernameBytes.Length
-            || emailSpan.Length > emailBytes.Length)
+        if (usernameSpan.Length > columnUserNameSize
+            || emailSpan.Length > columnEmailSize)
         {
             throw new StringTooLongException();
         }
@@ -57,9 +55,9 @@ public class Row
 
     public void Serialize(Memory<byte> destination)
     {
-        var id = destination[idOffset..(idOffset + idSize)];
-        var username = destination[usernameOffset..(usernameOffset + usernameSize)];
-        var email = destination[emailOffset..(emailOffset + emailSize)];
+        var id = destination[(int)idOffset..(int)(idOffset + idSize)];
+        var username = destination[(int)usernameOffset..(int)(usernameOffset + usernameSize)];
+        var email = destination[(int)emailOffset..(int)(emailOffset + emailSize)];
 
         idBytes.CopyTo(id);
         usernameBytes.CopyTo(username);
@@ -68,11 +66,11 @@ public class Row
 
     public static Row Deserialize(Memory<byte> bytes)
     {
-        var idMemory = bytes[idOffset..(idOffset + idSize)];
-        var usernameMemory = bytes[usernameOffset..(usernameOffset + usernameSize)];
-        var emailMemory = bytes[emailOffset..(emailOffset + emailSize)];
+        var idMemory = bytes[(int)idOffset..(int)(idOffset + idSize)];
+        var usernameMemory = bytes[(int)usernameOffset..(int)(usernameOffset + usernameSize - 1)];
+        var emailMemory = bytes[(int)emailOffset..(int)(emailOffset + emailSize - 1)];
 
-        var id = BitConverter.ToInt32(idMemory.Span);
+        var id = BitConverter.ToUInt32(idMemory.Span);
         var username = Encoding.GetString(RemoveEndOfString(usernameMemory.Span));
         var email = Encoding.GetString(RemoveEndOfString(emailMemory.Span));
 

@@ -3,8 +3,9 @@
 public class Pager
 {
     FileStream fileDescriptor;
-    public long FileLength { get; }
+    public uint FileLength { get; }
     Page?[] pages = new Page?[Table.MaxPages];
+    public uint NumPages { get; private set; }
 
     private Pager(string fileName)
     {
@@ -12,7 +13,8 @@ public class Pager
 
         fileInfo.Directory?.Create();
         fileDescriptor = fileInfo.Open(FileMode.OpenOrCreate, FileAccess.ReadWrite);
-        FileLength = fileInfo.Length;
+        FileLength = (uint)fileInfo.Length;
+        NumPages = FileLength / Page.Size;
 
         for (var i = 0; i < Table.MaxPages; i++)
         {
@@ -22,7 +24,7 @@ public class Pager
 
     public static Pager Open(string fileName) => new Pager(fileName);
 
-    public async Task<Page> GetPageAsync(int pageNum)
+    public async Task<Page> GetPageAsync(uint pageNum)
     {
         if (pageNum > Table.MaxPages)
         {
@@ -56,40 +58,30 @@ public class Pager
             }
 
             pages[pageNum] = page;
+
+            if (pageNum >= NumPages)
+            {
+                NumPages = pageNum + 1;
+            }
         }
 
         return pages[pageNum]!;
     }
 
-    public async Task FlushAsync(int numRows)
+    public async Task FlushAsync()
     {
-        var numFullPages = numRows / Table.RowsPerPage;
-
-        for (int i = 0; i < numFullPages; i++)
+        for (int i = 0; i < NumPages; i++)
         {
             if (pages[i] is null)
             {
                 continue;
             }
-            await FlushAsync(i, Page.Size);
+            await FlushAsync(i);
             pages[i] = null;
-        }
-
-        // There may be a partial page to write to the end of the file
-        // This should not be needed after we switch to a B-tree
-        var numAdditionalRows = numRows % Table.RowsPerPage;
-        if (numAdditionalRows > 0)
-        {
-            var pageNum = numFullPages;
-            if (pages[pageNum] is not null)
-            {
-                await FlushAsync(pageNum, numAdditionalRows * Row.Size);
-                pages[pageNum] = null;
-            }
         }
     }
 
-    private async Task FlushAsync(int pageNum, int size)
+    private async Task FlushAsync(int pageNum)
     {
         if (pages[pageNum] is null)
         {
@@ -99,7 +91,7 @@ public class Pager
 
         try
         {
-            var offset = fileDescriptor.Seek(pageNum * Page.Size, SeekOrigin.Begin);
+            fileDescriptor.Seek(pageNum * Page.Size, SeekOrigin.Begin);
         }
         catch (Exception e)
         {
@@ -107,7 +99,7 @@ public class Pager
             DbContext.EnvironmentService.Exit(1);
         }
 
-        await fileDescriptor.WriteAsync(pages[pageNum]!.Buffer, 0, size);
+        await fileDescriptor.WriteAsync(pages[pageNum]!.Buffer, 0, Page.Size);
     }
 
     public void Close()

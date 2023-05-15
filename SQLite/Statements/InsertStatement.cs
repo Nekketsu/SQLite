@@ -1,4 +1,5 @@
-﻿using SQLite.Exceptions;
+﻿using SQLite.BTrees;
+using SQLite.Exceptions;
 
 namespace SQLite.Statements;
 
@@ -17,16 +18,15 @@ public class InsertStatement : Statement
     {
         try
         {
-            if (Table.NumRows >= Table.MaxRows)
+            var node = await Table.Pager.GetPageAsync(Table.RootPageNum);
+            if (new LeafNode(node.Buffer).NumCells >= LeafNode.MaxCells)
             {
                 throw new TableFullException();
             }
 
-            var cursor = Table.End();
-            var row = await cursor.GetValueAsync();
-            RowToInsert.Serialize(await cursor.GetValueAsync());
+            var cursor = await Table.EndAsync();
 
-            Table.NumRows++;
+            await LeafNode.InsertAsync(cursor, RowToInsert.Id, RowToInsert);
 
             return ExecuteResult.Success;
         }

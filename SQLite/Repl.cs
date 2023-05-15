@@ -12,7 +12,7 @@ public class Repl
 
     public async Task RunAsync(string filename)
     {
-        var table = Table.Open(filename);
+        var database = await Database.OpenAsync(filename);
 
         while (true)
         {
@@ -21,19 +21,19 @@ public class Repl
 
             if (input.StartsWith('.'))
             {
-                switch (MetaCommand.Prepare(input, table, out var metaCommand))
+                var (result, metaCommand) = await MetaCommand.PrepareAsync(input, database);
+                switch (result)
                 {
                     case PrepareMetaCommandResult.Success:
-                        break;
+                        await metaCommand.ExecuteAsync();
+                        continue;
                     case PrepareMetaCommandResult.UnrecognizedCommand:
                         DbContext.OutputService.WriteLine($"Unrecognized command {input}");
                         continue;
                 }
-
-                await metaCommand.ExecuteAsync();
             }
 
-            switch (Statement.Prepare(input, table, out var statement))
+            switch (Statement.Prepare(input, database, out var statement))
             {
                 case PrepareStatementResult.Success:
                     break;

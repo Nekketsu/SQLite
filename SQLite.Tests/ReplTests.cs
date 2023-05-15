@@ -174,6 +174,65 @@ namespace SQLite.Tests
 
         }
 
+        [Fact]
+        public async void PrintsConstants()
+        {
+            var path = nameof(PrintsConstants);
+            CleanUp(path);
+
+            var script = new[]
+            {
+                ".constants",
+                ".exit"
+            };
+
+            var result = await RunScriptAsync(script, path);
+
+            var expected = new[]
+            {
+                "db > Constants:",
+                "ROW_SIZE: 293",
+                "COMMON_NODE_HEADER_SIZE: 6",
+                "LEAF_NODE_HEADER_SIZE: 10",
+                "LEAF_NODE_CELL_SIZE: 297",
+                "LEAF_NODE_SPACE_FOR_CELLS: 4086",
+                "LEAF_NODE_MAX_CELLS: 13",
+                "db > "
+            };
+
+            Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public async Task AllowsPrintingOutTheStructureOfAOneNodeBTree()
+        {
+            var path = nameof(AllowsPrintingOutTheStructureOfAOneNodeBTree);
+            CleanUp(path);
+
+            var script = new[] { 3, 1, 2 }
+            .Select(i => $"insert {i} user{i} person{i}@example.com")
+            .Append(".btree")
+            .Append(".exit")
+            .ToArray();
+
+            var result = await RunScriptAsync(script, path);
+
+            var expected = new[]
+            {
+                "db > Executed.",
+                "db > Executed.",
+                "db > Executed.",
+                "db > Tree:",
+                "leaf (size 3)",
+                "  - 0 : 3",
+                "  - 1 : 1",
+                "  - 2 : 2",
+                "db > "
+            };
+
+            Assert.Equal(expected, result);
+        }
+
         private async Task<string[]> RunScriptAsync(string[] script, string path)
         {
             var outputService = new MockOutputService();

@@ -2,16 +2,16 @@
 
 public class ExitMetaCommand : MetaCommand
 {
-    private readonly Table table;
+    private readonly Database database;
 
-    public ExitMetaCommand(Table table)
+    public ExitMetaCommand(Database database)
     {
-        this.table = table;
+        this.database = database;
     }
 
     public override async Task ExecuteAsync()
     {
-        await table.CloseAsync();
+        await database.CloseAsync();
         DbContext.EnvironmentService.Exit(0);
     }
 }

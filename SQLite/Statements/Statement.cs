@@ -6,7 +6,7 @@ public abstract class Statement
 {
     public abstract Task<ExecuteResult> ExecuteAsync();
 
-    public static PrepareStatementResult Prepare(string input, Table table, out Statement statement)
+    public static PrepareStatementResult Prepare(string input, Database database, out Statement statement)
     {
         statement = null!;
 
@@ -25,9 +25,14 @@ public abstract class Statement
 
             try
             {
-                var rowToInsert = new Row(id, username, email);
+                if (id < 0)
+                {
+                    throw new NegativeIdException();
+                }
 
-                statement = new InsertStatement(table, rowToInsert);
+                var rowToInsert = new Row((uint)id, username, email);
+
+                statement = new InsertStatement(database.Table, rowToInsert);
                 return PrepareStatementResult.Success;
             }
             catch (NegativeIdException)
@@ -41,7 +46,7 @@ public abstract class Statement
         }
         if (input == "select")
         {
-            statement = new SelectStatement(table);
+            statement = new SelectStatement(database.Table);
             return PrepareStatementResult.Success;
         }
 

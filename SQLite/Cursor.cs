@@ -1,32 +1,62 @@
-﻿namespace SQLite
+﻿using SQLite.BTrees;
+
+namespace SQLite
 {
     public class Cursor
     {
-        private Table table;
-        private int rowNum;
+        public Table Table { get; }
+        public uint PageNum { get; }
+        public uint CellNum { get; private set; }
+
         public bool EndOfTable { get; private set; } // Indicates a position one past the last element
 
-        public Cursor(Table table, int rowNum = 0)
+        private Cursor(Table table, uint pageNum, uint cellNum, bool endOfTable)
         {
-            this.table = table;
-            this.rowNum = rowNum;
-            EndOfTable = table.NumRows == 0;
+            Table = table;
+            PageNum = pageNum;
+            CellNum = cellNum;
+
+            EndOfTable = endOfTable;
+        }
+
+
+        public static async Task<Cursor> StartAsync(Table table)
+        {
+            var pageNum = table.RootPageNum;
+            var cellNum = 0u;
+
+            var rootNode = await table.Pager.GetPageAsync(table.RootPageNum);
+            var numCells = new LeafNode(rootNode.Buffer).NumCells;
+            var endOfTable = numCells == cellNum;
+
+            return new Cursor(table, pageNum, cellNum, endOfTable);
+        }
+
+        public static async Task<Cursor> EndAsync(Table table)
+        {
+            var pageNum = table.RootPageNum;
+
+            var rootNode = await table.Pager.GetPageAsync(table.RootPageNum);
+            var numCells = new LeafNode(rootNode.Buffer).NumCells;
+            var cellNum = numCells;
+            var endOfTable = true;
+
+            return new Cursor(table, pageNum, cellNum, endOfTable);
         }
 
         public async Task<Memory<byte>> GetValueAsync()
         {
-            var pageNum = rowNum / Table.RowsPerPage;
-            var page = await table.Pager.GetPageAsync(pageNum);
-            var rowOffset = rowNum % Table.RowsPerPage;
-            var byteOffset = rowOffset * Row.Size;
+            var page = await Table.Pager.GetPageAsync(PageNum);
 
-            return page.Buffer.AsMemory(byteOffset);
+            return new LeafNode(page.Buffer).Value(CellNum);
         }
 
-        public void Advance()
+        public async Task AdvanceAsync()
         {
-            rowNum++;
-            if (rowNum >= table.NumRows)
+            var node = await Table.Pager.GetPageAsync(PageNum);
+            CellNum++;
+
+            if (CellNum >= new LeafNode(node.Buffer).NumCells)
             {
                 EndOfTable = true;
             }

@@ -3,27 +3,17 @@
 public class Table
 {
     public const int MaxPages = 100;
-    public const int RowsPerPage = Page.Size / Row.Size;
-    public int MaxRows = RowsPerPage * MaxPages;
 
     public Pager Pager { get; }
-    public int NumRows { get; set; }
+    public uint RootPageNum { get; set; }
 
-    private Table(string fileName)
+    public Table(Pager pager)
     {
-        Pager = Pager.Open(fileName);
-        NumRows = (int)(Pager.FileLength / Row.Size);
+        Pager = pager;
+        RootPageNum = 0;
     }
 
-    public static Table Open(string fileName) => new Table(fileName);
+    public async Task<Cursor> StartAsync() => await Cursor.StartAsync(this);
 
-    public async Task CloseAsync()
-    {
-        await Pager.FlushAsync(NumRows);
-        Pager.Close();
-    }
-
-    public Cursor Start() => new Cursor(this);
-
-    public Cursor End() => new Cursor(this, NumRows);
+    public async Task<Cursor> EndAsync() => await Cursor.EndAsync(this);
 }
