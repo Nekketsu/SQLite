@@ -6,14 +6,23 @@ namespace SQLite.Tests.Services;
 public class MockOutputService : IOutputService
 {
     private readonly StringBuilder stringBuilder = new StringBuilder();
-    private readonly List<string> output = new List<string> { string.Empty };
+    private readonly List<string> output = new List<string>();
 
     public string[] Output => output.ToArray();
 
     public void Write(string? value)
     {
+        var shouldAddLine = stringBuilder.Length == 0;
+
         stringBuilder.Append(value);
-        output[^1] = stringBuilder.ToString();
+        if (shouldAddLine)
+        {
+            output.Add(stringBuilder.ToString());
+        }
+        else
+        {
+            output[^1] = stringBuilder.ToString();
+        }
     }
 
     public void WriteLine(string? value)
@@ -21,6 +30,5 @@ public class MockOutputService : IOutputService
         Write(value);
 
         stringBuilder.Clear();
-        output.Add(string.Empty);
     }
 }

@@ -22,8 +22,11 @@ public class Database
         if (pager.NumPages == 0)
         {
             // New database file. Initialize page 0 as leaf node.
-            var rootNode = await pager.GetPageAsync(0);
-            new LeafNode(rootNode.Buffer).Initialize();
+            var page = await pager.GetPageAsync(0);
+            var rootNode = new LeafNode(page.Buffer);
+            rootNode.Initialize();
+            rootNode.IsNodeRoot = true;
+
         }
 
         return new Database(pager, table);

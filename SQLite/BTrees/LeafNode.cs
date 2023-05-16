@@ -15,6 +15,8 @@ public class LeafNode : Node
     public const uint CellSize = keySize + valueSize;
     public const uint SpaceForCells = Page.Size - HeaderSize;
     public const uint MaxCells = SpaceForCells / CellSize;
+    private const uint rightSplitCount = (MaxCells + 1) / 2;
+    private const uint leftSplitCount = (MaxCells + 1) - rightSplitCount;
 
     public LeafNode(byte[] node) : base(node)
     {
@@ -22,7 +24,8 @@ public class LeafNode : Node
 
     public void Initialize()
     {
-        SetNodeType(node, NodeType.Leaf);
+        NodeType = NodeType.Leaf;
+        IsNodeRoot = false;
         NumCells = 0;
     }
 
@@ -40,7 +43,9 @@ public class LeafNode : Node
         return node.AsMemory()[(int)start..(int)end];
     }
 
-    public Memory<byte> Key(uint cellNum) => Cell(cellNum)[..(int)keySize];
+    public uint Key(uint cellNum) => BitConverter.ToUInt32(Cell(cellNum)[..(int)keySize].Span);
+    public void Key(uint cellNum, uint value) =>
+        BitConverter.GetBytes(value).CopyTo(Cell(cellNum)[..(int)keySize]);
 
     public Memory<byte> Value(uint cellNum) => Cell(cellNum)[(int)keySize..];
 
@@ -52,8 +57,8 @@ public class LeafNode : Node
         if (node.NumCells >= MaxCells)
         {
             // Node full
-            DbContext.OutputService.WriteLine("Need to implement splitting a leaf node.\n");
-            DbContext.EnvironmentService.Exit(1);
+            await SplitAndInsert(cursor, key, value);
+            return;
         }
 
         if (cursor.CellNum < node.NumCells)
@@ -66,8 +71,92 @@ public class LeafNode : Node
         }
 
         node.NumCells++;
-        BitConverter.GetBytes(key).CopyTo(node.Key(cursor.CellNum));
+        node.Key(cursor.CellNum, key);
         value.Serialize(node.Value(cursor.CellNum));
+    }
+
+    private static async Task SplitAndInsert(Cursor cursor, uint key, Row value)
+    {
+        // Create a new node and move half the cells over
+        // Insert the new value in one of the two nodes.
+        // Update parent or create a new parent.
+        var oldPage = await cursor.Table.Pager.GetPageAsync(cursor.PageNum);
+        var newPageNum = cursor.Table.Pager.GetUnusedPageNum();
+        var newPage = await cursor.Table.Pager.GetPageAsync(newPageNum);
+
+        var oldNode = new LeafNode(oldPage.Buffer);
+        var newNode = new LeafNode(newPage.Buffer);
+
+        newNode.Initialize();
+
+        // All existing keys plus new key should be divided
+        // evenly between old (left) and new (right) nodes.
+        // Starting from the right, move each key to correct position.
+        for (var i = (int)MaxCells; i >= 0; i--)
+        {
+            var destionationNode = i >= leftSplitCount
+                ? newNode
+                : oldNode;
+
+            var indexWithinNode = (uint)i % leftSplitCount;
+            var destination = destionationNode.Cell(indexWithinNode);
+
+            if (i == cursor.CellNum)
+            {
+                value.Serialize(destination);
+            }
+            else if (i > cursor.CellNum)
+            {
+                oldNode.Cell((uint)i - 1).CopyTo(destination);
+            }
+            else
+            {
+                oldNode.Cell((uint)i).CopyTo(destination);
+            }
+        }
+
+        // Update cell count on both leaf nodes
+        oldNode.NumCells = leftSplitCount;
+        newNode.NumCells = rightSplitCount;
+
+        if (oldNode.IsNodeRoot)
+        {
+            await CreateNewRoot(cursor.Table, newPageNum);
+        }
+        else
+        {
+            DbContext.OutputService.WriteLine("Need to implement updating parent after split");
+            DbContext.EnvironmentService.Exit(1);
+        }
+    }
+
+    private static async Task CreateNewRoot(Table table, uint rightChildPageNum)
+    {
+        // Handle splitting the root.
+        // Old root copied to new page, becomes left child.
+        // Address of right child passed in.
+        // Re-initialize root page to contain the new root node.
+        // New root node points to two children.
+        var root = await table.Pager.GetPageAsync(table.RootPageNum);
+        var rightChild = await table.Pager.GetPageAsync(rightChildPageNum);
+        var leftChildPageNum = table.Pager.GetUnusedPageNum();
+        var leftChild = await table.Pager.GetPageAsync(leftChildPageNum);
+
+        // Left child has data copied from old root
+        root.Buffer.AsSpan().CopyTo(leftChild.Buffer.AsSpan());
+
+        var leftChildNode = new Node(leftChild.Buffer);
+        leftChildNode.IsNodeRoot = false;
+
+        // Root node is new internal node with one key and two children
+        var rootNode = new InternalNode(root.Buffer);
+        rootNode.Initialize();
+        rootNode.IsNodeRoot = true;
+        rootNode.NumKeys = 1;
+        rootNode.Child(0, leftChildPageNum);
+        var leftChildMaxKey = leftChildNode.MaxKey;
+        rootNode.Key(0, leftChildMaxKey);
+        rootNode.RightChild = rightChildPageNum;
     }
 
     public static async Task<Cursor> FindAsync(Table table, uint pageNum, uint key)
@@ -82,7 +171,7 @@ public class LeafNode : Node
         while (onePastMaxIndex != minIndex)
         {
             var index = (minIndex + onePastMaxIndex) / 2;
-            var keyAtIndex = BitConverter.ToUInt32(node.Key(index).Span);
+            var keyAtIndex = node.Key(index);
             if (key == keyAtIndex)
             {
                 return new Cursor(table, pageNum, index, numCells == index);

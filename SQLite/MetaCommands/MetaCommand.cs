@@ -4,7 +4,7 @@ public abstract class MetaCommand
 {
     public abstract Task ExecuteAsync();
 
-    public static async Task<(PrepareMetaCommandResult, MetaCommand)> PrepareAsync(string input, Database database)
+    public static (PrepareMetaCommandResult, MetaCommand) Prepare(string input, Database database)
     {
         if (input == ".exit")
         {
@@ -19,8 +19,7 @@ public abstract class MetaCommand
         else if (input == ".btree")
         {
             DbContext.OutputService.WriteLine("Tree:");
-            var page = await database.Table.Pager.GetPageAsync(0);
-            var metaCommand = new PrintLeafNodeMetaCommand(page.Buffer);
+            var metaCommand = new PrintTreeMetaCommand(database.Table.Pager, 0, 0);
             return (PrepareMetaCommandResult.Success, metaCommand);
         }
 

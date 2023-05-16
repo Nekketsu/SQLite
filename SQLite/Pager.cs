@@ -68,6 +68,13 @@ public class Pager
         return pages[pageNum]!;
     }
 
+    // Until we start recycling free pages, new pages will always
+    // go onto the end of the database file
+    public uint GetUnusedPageNum()
+    {
+        return NumPages;
+    }
+
     public async Task FlushAsync()
     {
         for (int i = 0; i < NumPages; i++)

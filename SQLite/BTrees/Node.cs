@@ -17,15 +17,36 @@ public class Node
         this.node = node;
     }
 
-    public static NodeType GetNodeType(byte[] node)
+    public NodeType NodeType
     {
-        var value = node[typeOffset];
-        return (NodeType)value;
+        get => GetNodeType(node);
+        set => node[typeOffset] = (byte)value;
     }
 
-    public static void SetNodeType(byte[] node, NodeType type)
+    public static NodeType GetNodeType(byte[] node) =>
+        (NodeType)node[typeOffset];
+
+    public uint MaxKey
     {
-        var value = (byte)type;
-        node[typeOffset] = value;
+        get
+        {
+            switch (GetNodeType(node))
+            {
+                case NodeType.Internal:
+                    var internalNode = new InternalNode(node);
+                    return internalNode.Key(internalNode.NumKeys - 1);
+                case NodeType.Leaf:
+                    var leafNode = new LeafNode(node);
+                    return leafNode.Key(leafNode.NumCells - 1);
+            }
+
+            return 0;
+        }
+    }
+
+    public bool IsNodeRoot
+    {
+        get => node[isRootOffset] == 1;
+        set => node[isRootOffset] = (byte)(value ? 1 : 0);
     }
 }

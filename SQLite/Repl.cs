@@ -21,7 +21,7 @@ public class Repl
 
             if (input.StartsWith('.'))
             {
-                var (result, metaCommand) = await MetaCommand.PrepareAsync(input, database);
+                var (result, metaCommand) = MetaCommand.Prepare(input, database);
                 switch (result)
                 {
                     case PrepareMetaCommandResult.Success:

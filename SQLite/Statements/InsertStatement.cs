@@ -22,17 +22,13 @@ public class InsertStatement : Statement
             var node = new LeafNode(page.Buffer);
 
             var numCells = node.NumCells;
-            if (numCells >= LeafNode.MaxCells)
-            {
-                throw new TableFullException();
-            }
 
             var keyToInsert = RowToInsert.Id;
             var cursor = await Table.FindAsync(keyToInsert);
 
             if (cursor.CellNum < numCells)
             {
-                var keyAtIndex = BitConverter.ToUInt32(node.Key(cursor.CellNum).Span);
+                var keyAtIndex = node.Key(cursor.CellNum);
                 if (keyAtIndex == keyToInsert)
                 {
                     return ExecuteResult.DuplicateKey;

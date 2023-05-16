@@ -32,23 +32,23 @@ namespace SQLite.Tests
             Assert.Equal(expected, result);
         }
 
-        [Fact]
-        public async Task PrintsErrorMessageWhenTableIsFull()
-        {
-            var path = nameof(PrintsErrorMessageWhenTableIsFull);
-            CleanUp(path);
+        //[Fact]
+        //public async Task PrintsErrorMessageWhenTableIsFull()
+        //{
+        //    var path = nameof(PrintsErrorMessageWhenTableIsFull);
+        //    CleanUp(path);
 
-            var script = Enumerable.Range(1, 1401)
-                .Select(i => $"insert {i} user{i} person{i}@example.com")
-                .Append(".exit")
-                .ToArray();
+        //    var script = Enumerable.Range(1, 1401)
+        //        .Select(i => $"insert {i} user{i} person{i}@example.com")
+        //        .Append(".exit")
+        //        .ToArray();
 
-            var result = await RunScriptAsync(script, path);
+        //    var result = await RunScriptAsync(script, path);
 
-            var expected = "db > Error: Table full.";
+        //    var expected = "db > Error: Table full.";
 
-            Assert.Equal(expected, result[^2]);
-        }
+        //    Assert.Equal(expected, result[^2]);
+        //}
 
         [Fact]
         public async Task AllowsInsertingStringsThatAreTheMaximumLength()
@@ -82,7 +82,7 @@ namespace SQLite.Tests
         [Fact]
         public async Task PrintsErrorMessageIfStringsAreTooLong()
         {
-            var path = nameof(PrintsErrorMessageWhenTableIsFull);
+            var path = nameof(PrintsErrorMessageIfStringsAreTooLong);
             CleanUp(path);
 
             var longUsername = new string('a', 33);
@@ -223,10 +223,10 @@ namespace SQLite.Tests
                 "db > Executed.",
                 "db > Executed.",
                 "db > Tree:",
-                "leaf (size 3)",
-                "  - 0 : 1",
-                "  - 1 : 2",
-                "  - 2 : 3",
+                "- leaf (size 3)",
+                "  - 1",
+                "  - 2",
+                "  - 3",
                 "db > "
             };
 
@@ -259,6 +259,48 @@ namespace SQLite.Tests
             };
 
             Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public async Task AllowsPrintingOutTheStructureOfA3LeafNode()
+        {
+            var path = nameof(AllowsPrintingOutTheStructureOfA3LeafNode);
+            CleanUp(path);
+
+            var script = Enumerable.Range(1, 14)
+                .Select(i => $"insert {i} user{i} person{i}@example.com")
+                .Append(".btree")
+                .Append("insert 15 user15 person15@example.com")
+                .Append(".exit")
+                .ToArray();
+
+            var result = await RunScriptAsync(script, path);
+
+            var expected = new[]
+            {
+                "db > Tree:",
+                "- internal (size 1)",
+                "  - leaf (size 7)",
+                "    - 1",
+                "    - 2",
+                "    - 3",
+                "    - 4",
+                "    - 5",
+                "    - 6",
+                "    - 7",
+                "  - key 7",
+                "  - leaf (size 7)",
+                "    - 8",
+                "    - 9",
+                "    - 10",
+                "    - 11",
+                "    - 12",
+                "    - 13",
+                "    - 14",
+                "db > Need to implement searching an internal node",
+            };
+
+            Assert.Equal(expected, result[14..]);
         }
 
         private async Task<string[]> RunScriptAsync(string[] script, string path)
