@@ -40,9 +40,7 @@ public class Table
         }
         else
         {
-            DbContext.OutputService.WriteLine("Need to implement searching an internal node");
-            DbContext.EnvironmentService.Exit(1);
-            return null!;
+            return await InternalNode.FindAsync(this, RootPageNum, key);
         }
     }
 }

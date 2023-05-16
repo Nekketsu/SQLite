@@ -32,23 +32,27 @@ namespace SQLite.Tests
             Assert.Equal(expected, result);
         }
 
-        //[Fact]
-        //public async Task PrintsErrorMessageWhenTableIsFull()
-        //{
-        //    var path = nameof(PrintsErrorMessageWhenTableIsFull);
-        //    CleanUp(path);
+        [Fact]
+        public async Task PrintsErrorMessageWhenTableIsFull()
+        {
+            var path = nameof(PrintsErrorMessageWhenTableIsFull);
+            CleanUp(path);
 
-        //    var script = Enumerable.Range(1, 1401)
-        //        .Select(i => $"insert {i} user{i} person{i}@example.com")
-        //        .Append(".exit")
-        //        .ToArray();
+            var script = Enumerable.Range(1, 1401)
+                .Select(i => $"insert {i} user{i} person{i}@example.com")
+                .Append(".exit")
+                .ToArray();
 
-        //    var result = await RunScriptAsync(script, path);
+            var result = await RunScriptAsync(script, path);
 
-        //    var expected = "db > Error: Table full.";
+            var expected = new[]
+            {
+                "db > Executed.",
+                "db > Need to implement updating parent after split"
+            };
 
-        //    Assert.Equal(expected, result[^2]);
-        //}
+            Assert.Equal(expected, result[^2..]);
+        }
 
         [Fact]
         public async Task AllowsInsertingStringsThatAreTheMaximumLength()
@@ -297,7 +301,8 @@ namespace SQLite.Tests
                 "    - 12",
                 "    - 13",
                 "    - 14",
-                "db > Need to implement searching an internal node",
+                "db > Executed.",
+                "db > "
             };
 
             Assert.Equal(expected, result[14..]);

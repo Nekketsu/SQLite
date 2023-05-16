@@ -79,4 +79,41 @@ public class InternalNode : Node
 
     public void Key(uint keyNum, uint value) =>
         BitConverter.GetBytes(value).CopyTo(Cell(keyNum)[(int)childSize..(int)(childSize + keySize)]);
+
+    public static async Task<Cursor> FindAsync(Table table, uint pageNum, uint key)
+    {
+        var node = await table.Pager.GetPageAsync(pageNum);
+        var internalNode = new InternalNode(node.Buffer);
+        var numKeys = internalNode.NumKeys;
+
+        // Binary search to find index of child to search
+        var minIndex = 0u;
+        var maxIndex = numKeys; // there is one more child than key
+
+        while (minIndex != maxIndex)
+        {
+            var index = (minIndex + maxIndex) / 2;
+            var keyToRight = internalNode.Key(index);
+            if (keyToRight >= key)
+            {
+                maxIndex = index;
+            }
+            else
+            {
+                minIndex = index + 1;
+            }
+        }
+
+        var childNum = internalNode.Child(minIndex);
+        var child = await table.Pager.GetPageAsync(childNum);
+        switch (new Node(child.Buffer).NodeType)
+        {
+            case NodeType.Leaf:
+                return await LeafNode.FindAsync(table, childNum, key);
+            case NodeType.Internal:
+                return await FindAsync(table, childNum, key);
+        }
+
+        return null!;
+    }
 }
