@@ -22,6 +22,7 @@ public class LeafNode : Node
 
     public void Initialize()
     {
+        SetNodeType(node, NodeType.Leaf);
         NumCells = 0;
     }
 
@@ -67,5 +68,35 @@ public class LeafNode : Node
         node.NumCells++;
         BitConverter.GetBytes(key).CopyTo(node.Key(cursor.CellNum));
         value.Serialize(node.Value(cursor.CellNum));
+    }
+
+    public static async Task<Cursor> FindAsync(Table table, uint pageNum, uint key)
+    {
+        var page = await table.Pager.GetPageAsync(pageNum);
+        var node = new LeafNode(page.Buffer);
+        var numCells = node.NumCells;
+
+        // Binary Search
+        var minIndex = 0u;
+        var onePastMaxIndex = numCells;
+        while (onePastMaxIndex != minIndex)
+        {
+            var index = (minIndex + onePastMaxIndex) / 2;
+            var keyAtIndex = BitConverter.ToUInt32(node.Key(index).Span);
+            if (key == keyAtIndex)
+            {
+                return new Cursor(table, pageNum, index, numCells == index);
+            }
+            if (key < keyAtIndex)
+            {
+                onePastMaxIndex = index;
+            }
+            else
+            {
+                minIndex = index + 1;
+            }
+        }
+
+        return new Cursor(table, pageNum, minIndex, numCells == minIndex);
     }
 }

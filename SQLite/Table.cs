@@ -1,4 +1,6 @@
-﻿namespace SQLite;
+﻿using SQLite.BTrees;
+
+namespace SQLite;
 
 public class Table
 {
@@ -13,7 +15,34 @@ public class Table
         RootPageNum = 0;
     }
 
-    public async Task<Cursor> StartAsync() => await Cursor.StartAsync(this);
+    public async Task<Cursor> StartAsync()
+    {
+        var pageNum = RootPageNum;
+        var cellNum = 0u;
 
-    public async Task<Cursor> EndAsync() => await Cursor.EndAsync(this);
+        var rootNode = await Pager.GetPageAsync(RootPageNum);
+        var numCells = new LeafNode(rootNode.Buffer).NumCells;
+        var endOfTable = numCells == cellNum;
+
+        return new Cursor(this, pageNum, cellNum, endOfTable);
+    }
+
+    // Return the position of the given key.
+    // If the key is not present, return the position
+    // where it should be inserted
+    public async Task<Cursor> FindAsync(uint key)
+    {
+        var rootNode = await Pager.GetPageAsync(RootPageNum);
+
+        if (Node.GetNodeType(rootNode.Buffer) == NodeType.Leaf)
+        {
+            return await LeafNode.FindAsync(this, RootPageNum, key);
+        }
+        else
+        {
+            DbContext.OutputService.WriteLine("Need to implement searching an internal node");
+            DbContext.EnvironmentService.Exit(1);
+            return null!;
+        }
+    }
 }

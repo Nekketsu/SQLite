@@ -1,6 +1,6 @@
 ﻿namespace SQLite.BTrees;
 
-public enum NodeType
+public enum NodeType : byte
 {
     Internal,
     Leaf

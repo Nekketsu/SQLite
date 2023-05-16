@@ -224,9 +224,37 @@ namespace SQLite.Tests
                 "db > Executed.",
                 "db > Tree:",
                 "leaf (size 3)",
-                "  - 0 : 3",
-                "  - 1 : 1",
-                "  - 2 : 2",
+                "  - 0 : 1",
+                "  - 1 : 2",
+                "  - 2 : 3",
+                "db > "
+            };
+
+            Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public async Task PrintsAnErrorMessageIfThereIsADuplicateId()
+        {
+            var path = nameof(PrintsAnErrorMessageIfThereIsADuplicateId);
+            CleanUp(path);
+
+            var script = new[]
+            {
+                "insert 1 user1 person1@example.com",
+                "insert 1 user1 person1@example.com",
+                "select",
+                ".exit"
+            };
+
+            var result = await RunScriptAsync(script, path);
+
+            var expected = new[]
+            {
+                "db > Executed.",
+                "db > Error: Duplicate key.",
+                "db > (1, user1, person1@example.com)",
+                "Executed.",
                 "db > "
             };
 

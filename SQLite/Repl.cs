@@ -56,6 +56,9 @@ public class Repl
                 case ExecuteResult.Success:
                     DbContext.OutputService.WriteLine("Executed.");
                     break;
+                case ExecuteResult.DuplicateKey:
+                    DbContext.OutputService.WriteLine("Error: Duplicate key.");
+                    break;
                 case ExecuteResult.TableFull:
                     DbContext.OutputService.WriteLine("Error: Table full.");
                     break;

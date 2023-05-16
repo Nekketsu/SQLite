@@ -2,5 +2,7 @@
 
 public enum ExecuteResult
 {
-    Success, TableFull
+    Success,
+    DuplicateKey,
+    TableFull
 }

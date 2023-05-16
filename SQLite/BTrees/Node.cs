@@ -16,4 +16,16 @@ public class Node
     {
         this.node = node;
     }
+
+    public static NodeType GetNodeType(byte[] node)
+    {
+        var value = node[typeOffset];
+        return (NodeType)value;
+    }
+
+    public static void SetNodeType(byte[] node, NodeType type)
+    {
+        var value = (byte)type;
+        node[typeOffset] = value;
+    }
 }
