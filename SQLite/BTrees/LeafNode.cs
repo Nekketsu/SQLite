@@ -5,7 +5,9 @@ public class LeafNode : Node
     // Leaf node header layout
     const uint numCellsSize = sizeof(uint);
     const uint numCellsOffset = CommonNodeHeaderSize;
-    public const uint HeaderSize = CommonNodeHeaderSize + numCellsSize;
+    const uint nextLeafSize = sizeof(uint);
+    const uint nextLeafOffset = numCellsOffset + numCellsSize;
+    public const uint HeaderSize = CommonNodeHeaderSize + numCellsSize + nextLeafSize;
 
     // Leaf node body layout
     const uint keySize = sizeof(uint);
@@ -27,6 +29,7 @@ public class LeafNode : Node
         NodeType = NodeType.Leaf;
         IsNodeRoot = false;
         NumCells = 0;
+        NextLeaf = 0; // 0 represents no sibling
     }
 
     public uint NumCells
@@ -46,6 +49,12 @@ public class LeafNode : Node
     public uint Key(uint cellNum) => BitConverter.ToUInt32(Cell(cellNum)[..(int)keySize].Span);
     public void Key(uint cellNum, uint value) =>
         BitConverter.GetBytes(value).CopyTo(Cell(cellNum)[..(int)keySize]);
+
+    public uint NextLeaf
+    {
+        get => BitConverter.ToUInt32(node[(int)nextLeafOffset..(int)(nextLeafOffset + nextLeafSize)]);
+        set => Array.Copy(BitConverter.GetBytes(value), 0, node, nextLeafOffset, sizeof(uint));
+    }
 
     public Memory<byte> Value(uint cellNum) => Cell(cellNum)[(int)keySize..];
 
@@ -88,22 +97,25 @@ public class LeafNode : Node
         var newNode = new LeafNode(newPage.Buffer);
 
         newNode.Initialize();
+        newNode.NextLeaf = oldNode.NextLeaf;
+        oldNode.NextLeaf = newPageNum;
 
         // All existing keys plus new key should be divided
         // evenly between old (left) and new (right) nodes.
         // Starting from the right, move each key to correct position.
         for (var i = (int)MaxCells; i >= 0; i--)
         {
-            var destionationNode = i >= leftSplitCount
+            var destinationNode = i >= leftSplitCount
                 ? newNode
                 : oldNode;
 
             var indexWithinNode = (uint)i % leftSplitCount;
-            var destination = destionationNode.Cell(indexWithinNode);
+            var destination = destinationNode.Cell(indexWithinNode);
 
             if (i == cursor.CellNum)
             {
-                value.Serialize(destination);
+                value.Serialize(destinationNode.Value(indexWithinNode));
+                destinationNode.Key(indexWithinNode, key);
             }
             else if (i > cursor.CellNum)
             {

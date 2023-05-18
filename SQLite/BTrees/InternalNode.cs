@@ -3,11 +3,11 @@
 public class InternalNode : Node
 {
     // Internal node header layout
-    const uint numKeySize = sizeof(uint);
+    const uint numKeysSize = sizeof(uint);
     const uint numKeysOffset = CommonNodeHeaderSize;
     const uint rightChildSize = sizeof(uint);
-    const uint rightChildOffset = numKeysOffset + numKeySize;
-    const uint headerSize = CommonNodeHeaderSize + numKeySize + rightChildSize;
+    const uint rightChildOffset = numKeysOffset + numKeysSize;
+    const uint headerSize = CommonNodeHeaderSize + numKeysSize + rightChildSize;
 
     // Internal node body layout
     const uint keySize = sizeof(uint);
@@ -19,13 +19,13 @@ public class InternalNode : Node
     public uint NumKeys
     {
         get => BitConverter.ToUInt32(node, (int)numKeysOffset);
-        set => Array.Copy(BitConverter.GetBytes(value), 0, node, numKeysOffset, sizeof(uint));
+        set => Array.Copy(BitConverter.GetBytes(value), 0, node, numKeysOffset, numKeysSize);
     }
 
     public uint RightChild
     {
         get => BitConverter.ToUInt32(node, (int)rightChildOffset);
-        set => Array.Copy(BitConverter.GetBytes(value), 0, node, rightChildOffset, sizeof(uint));
+        set => Array.Copy(BitConverter.GetBytes(value), 0, node, rightChildOffset, rightChildSize);
     }
 
     public void Initialize()

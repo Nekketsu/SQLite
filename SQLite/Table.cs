@@ -17,14 +17,13 @@ public class Table
 
     public async Task<Cursor> StartAsync()
     {
-        var pageNum = RootPageNum;
-        var cellNum = 0u;
+        var cursor = await FindAsync(0);
 
-        var rootNode = await Pager.GetPageAsync(RootPageNum);
-        var numCells = new LeafNode(rootNode.Buffer).NumCells;
-        var endOfTable = numCells == cellNum;
+        var node = await Pager.GetPageAsync(cursor.PageNum);
+        var numCells = new LeafNode(node.Buffer).NumCells;
+        cursor.EndOfTable = numCells == 0;
 
-        return new Cursor(this, pageNum, cellNum, endOfTable);
+        return cursor;
     }
 
     // Return the position of the given key.
