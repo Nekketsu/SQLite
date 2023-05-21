@@ -96,7 +96,10 @@ public class LeafNode : Node
         var oldNode = new LeafNode(oldPage.Buffer);
         var newNode = new LeafNode(newPage.Buffer);
 
+        var oldMax = oldNode.MaxKey;
+
         newNode.Initialize();
+        newNode.Parent = oldNode.Parent;
         newNode.NextLeaf = oldNode.NextLeaf;
         oldNode.NextLeaf = newPageNum;
 
@@ -137,8 +140,13 @@ public class LeafNode : Node
         }
         else
         {
-            DbContext.OutputService.WriteLine("Need to implement updating parent after split");
-            DbContext.EnvironmentService.Exit(1);
+            var parentPageNumber = oldNode.Parent;
+            var newMax = oldNode.MaxKey;
+            var parent = await cursor.Table.Pager.GetPageAsync(parentPageNumber);
+            var parentNode = new InternalNode(parent.Buffer);
+
+            parentNode.UpdateKey(oldMax, newMax);
+            await InternalNode.InsertAsync(cursor.Table, parentPageNumber, newPageNum);
         }
     }
 
@@ -158,6 +166,8 @@ public class LeafNode : Node
         root.Buffer.AsSpan().CopyTo(leftChild.Buffer.AsSpan());
 
         var leftChildNode = new Node(leftChild.Buffer);
+        var rightChildNode = new Node(rightChild.Buffer);
+
         leftChildNode.IsNodeRoot = false;
 
         // Root node is new internal node with one key and two children
@@ -169,6 +179,9 @@ public class LeafNode : Node
         var leftChildMaxKey = leftChildNode.MaxKey;
         rootNode.Key(0, leftChildMaxKey);
         rootNode.RightChild = rightChildPageNum;
+
+        leftChildNode.Parent = table.RootPageNum;
+        rightChildNode.Parent = table.RootPageNum;
     }
 
     public static async Task<Cursor> FindAsync(Table table, uint pageNum, uint key)

@@ -2,13 +2,13 @@
 
 public class Node
 {
-    const int typeSize = sizeof(byte);
-    const int typeOffset = 0;
-    const int isRootSize = sizeof(byte);
-    const int isRootOffset = typeSize;
-    const int parentPointerSize = sizeof(uint);
-    const int parentPointerOffset = isRootOffset + isRootSize;
-    public const int CommonNodeHeaderSize = typeSize + isRootSize + parentPointerSize;
+    const uint typeSize = sizeof(byte);
+    const uint typeOffset = 0;
+    const uint isRootSize = sizeof(byte);
+    const uint isRootOffset = typeSize;
+    const uint parentPointerSize = sizeof(uint);
+    const uint parentPointerOffset = isRootOffset + isRootSize;
+    public const uint CommonNodeHeaderSize = typeSize + isRootSize + parentPointerSize;
 
     protected byte[] node { get; }
 
@@ -42,6 +42,12 @@ public class Node
 
             return 0;
         }
+    }
+
+    public uint Parent
+    {
+        get => BitConverter.ToUInt32(node, (int)parentPointerOffset);
+        set => Array.Copy(BitConverter.GetBytes(value), 0, node, parentPointerOffset, sizeof(uint));
     }
 
     public bool IsNodeRoot

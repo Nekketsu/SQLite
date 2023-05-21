@@ -8,6 +8,8 @@ public class InternalNode : Node
     const uint rightChildSize = sizeof(uint);
     const uint rightChildOffset = numKeysOffset + numKeysSize;
     const uint headerSize = CommonNodeHeaderSize + numKeysSize + rightChildSize;
+    // Keep this small for testing
+    const uint maxCells = 3;
 
     // Internal node body layout
     const uint keySize = sizeof(uint);
@@ -66,6 +68,12 @@ public class InternalNode : Node
         }
     }
 
+    public void UpdateKey(uint oldKey, uint newKey)
+    {
+        var oldChildIndex = FindChild(oldKey);
+        Key(oldChildIndex, newKey);
+    }
+
     public uint Child(uint childNum) => BitConverter.ToUInt32(GetChild(childNum).Span);
 
     public void Child(uint childNum, uint value)
@@ -84,27 +92,10 @@ public class InternalNode : Node
     {
         var node = await table.Pager.GetPageAsync(pageNum);
         var internalNode = new InternalNode(node.Buffer);
-        var numKeys = internalNode.NumKeys;
 
-        // Binary search to find index of child to search
-        var minIndex = 0u;
-        var maxIndex = numKeys; // there is one more child than key
+        var childIndex = internalNode.FindChild(key);
+        var childNum = internalNode.Child(childIndex);
 
-        while (minIndex != maxIndex)
-        {
-            var index = (minIndex + maxIndex) / 2;
-            var keyToRight = internalNode.Key(index);
-            if (keyToRight >= key)
-            {
-                maxIndex = index;
-            }
-            else
-            {
-                minIndex = index + 1;
-            }
-        }
-
-        var childNum = internalNode.Child(minIndex);
         var child = await table.Pager.GetPageAsync(childNum);
         switch (new Node(child.Buffer).NodeType)
         {
@@ -115,5 +106,77 @@ public class InternalNode : Node
         }
 
         return null!;
+    }
+
+    // Return the index of the child which should contain
+    // the given key
+    public uint FindChild(uint key)
+    {
+        // Binary search
+        var minIndex = 0u;
+        var maxIndex = NumKeys; // there is one more child than key
+
+        while (minIndex != maxIndex)
+        {
+            var index = (minIndex + maxIndex) / 2;
+            var keyToRight = Key(index);
+            if (keyToRight >= key)
+            {
+                maxIndex = index;
+            }
+            else
+            {
+                minIndex = index + 1;
+            }
+        }
+
+        return minIndex;
+    }
+
+    // Add a new child/key pair to parent that corresponds to child
+    public static async Task InsertAsync(Table table, uint parentPageNum, uint childPageNum)
+    {
+        var parentPage = await table.Pager.GetPageAsync(parentPageNum);
+        var childPage = await table.Pager.GetPageAsync(childPageNum);
+
+        var parent = new InternalNode(parentPage.Buffer);
+        var child = new Node(childPage.Buffer);
+
+        var childMaxKey = child.MaxKey;
+        var index = parent.FindChild(childMaxKey);
+
+        var originalNumKeys = parent.NumKeys;
+        parent.NumKeys = originalNumKeys + 1;
+
+        if (originalNumKeys >= maxCells)
+        {
+            DbContext.OutputService.WriteLine("Need to implement splitting internal node");
+            DbContext.EnvironmentService.Exit(1);
+        }
+
+        var rightChildPageNum = parent.RightChild;
+        var rightChildPage = await table.Pager.GetPageAsync(rightChildPageNum);
+        var rightChild = new Node(rightChildPage.Buffer);
+
+        if (childMaxKey > rightChild.MaxKey)
+        {
+            // Replace right child
+            parent.Child(originalNumKeys, rightChildPageNum);
+            parent.Key(originalNumKeys, rightChild.MaxKey);
+            parent.RightChild = childPageNum;
+        }
+        else
+        {
+            // Make room for the new cell
+            for (var i = originalNumKeys; i > index; i--)
+            {
+                var destination = parent.Cell(i);
+                var source = parent.Cell(i - 1);
+                source.CopyTo(destination);
+            }
+
+            parent.Child(index, childPageNum);
+            parent.Key(index, childMaxKey);
+        }
     }
 }
